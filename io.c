@@ -37,3 +37,18 @@ void RunOp_safe(int semid, struct sembuf *op, size_t nop) {
     exit(EXIT_FAILURE);
   }
 }
+
+void royal_print(int N, int* buffer) {
+  for (int i = 0; i < N; i++) {
+    printf("|");
+    switch(buffer[i])
+    {
+      case pizza_ready:   printf("#");  break;
+      case pizza_cooking: printf("...");break;
+      case free_table:    printf("free");break;
+      default: printf("|");break;
+    }
+  }
+
+  printf("|\n");
+}

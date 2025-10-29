@@ -25,4 +25,5 @@ enum pizza_status
 int get_arg(int argc, char* argv[], struct Argument* st);
 void RunOp_safe(int semid, struct sembuf *op, size_t nop);
 void del_shm(int shmid);
+void royal_print(int N, int* buffer);
 pid_t fork_safe(void);
