@@ -110,14 +110,15 @@ void Deliver(int id, int shmid, int semid, int N)
   printf("Deliver %d: Ready!\n", id);
 
   bool take_pizza = true;
-  bool flag = false;
+  //bool flag = false;
   while(take_pizza) {
-    //royal_print(N, buffer);
     RunOp_safe(semid, cook_pizza_P, 1);
     for (int i = 0; i < N; i++) {
       if (buffer[i] == pizza_ready) {
         RunOp_safe(semid, pizza_is_ready, 1);
-        buffer[i] = free_table; flag = true;
+        buffer[i] = free_table; //flag = true;
+        printf("Deliver %d: I am taking pizza from table %d\n", id, i+1);
+        royal_print(N, buffer);
         break;
       }
     }
@@ -159,7 +160,7 @@ void Kitchener(int id, int shmid, int semid, int N)
   bool flag = false;
   while(cooked_pizzas != 5) {
     RunOp_safe(semid, cook_pizza_P, 1);
-  
+    
     // for (int i = 0; i < 5; i++) printf("%d ", GetVal_safe(semid, i));
     // fflush(stdout);
     // printf("\n");
@@ -170,6 +171,8 @@ void Kitchener(int id, int shmid, int semid, int N)
         RunOp_safe(semid, pizza, 1);
         table_index = i;
         buffer[i] = pizza_cooking;
+        printf("Cooker %d: I am cooking %d on table %d\n", id, cooked_pizzas+1, i+1);
+        royal_print(N, buffer);
         flag = true;
         break;
       }
@@ -178,7 +181,7 @@ void Kitchener(int id, int shmid, int semid, int N)
     RunOp_safe(semid, cook_pizza_V, 1);
 
     if (flag) {
-      printf("Cooker %d: I am cooking %d\n", id, cooked_pizzas+1);
+      
       sleep(1); // LET HIM COOK!!!
       buffer[table_index] = pizza_ready; cooked_pizzas++;
       flag = false;
