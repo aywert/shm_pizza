@@ -33,7 +33,7 @@ pid_t fork_safe(void) {
 
 void RunOp_safe(int semid, struct sembuf *op, size_t nop) {
   if (semop(semid, op, nop) < 0) {
-    perror("semop RunOp error\n");
+    perror("semop RunOp error");
     exit(EXIT_FAILURE);
   }
 }

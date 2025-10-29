@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  int semid = create_semaphore("main.c", IPC_CREAT, &st);
+  int semid = create_semaphore("main.c", IPC_CREAT|0644, &st);
 
   int *buffer = shmat(shmid, NULL, 0);
   if (buffer == (int *)-1) {
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
   royal_print(st.N, buffer);
 
   CreateKitchener(shmid, semid, &st);
-  //CreateDelivery(shmid, semid, &st);
+  CreateDelivery (shmid, semid, &st);
 
   printf("i am here\n");
   RunOp_safe(semid, wait_kitcheners, 2);
@@ -94,6 +94,9 @@ void Deliver(int id, int shmid, int semid, int N)
 {
   struct sembuf delivery_enter[] = {{2, -1, 0}};// decreasing sem with numbers of kitcheners
   struct sembuf wait_enter[]     = {{0, 0, 0}};     // waiting for entering
+  struct sembuf cook_pizza_P[] = {{3, -1, 0}};
+  struct sembuf cook_pizza_V[] = {{3, 1, 0}};
+  struct sembuf pizza_is_ready[] = {{4, -1, 0}};
   
   int* buffer = (int*)shmat(shmid, NULL, 0);
 
@@ -102,19 +105,30 @@ void Deliver(int id, int shmid, int semid, int N)
     exit(EXIT_FAILURE);
   }
   
-  printf("Deliver %d: Buffer address: %p\n", id, buffer);
   RunOp_safe(semid, delivery_enter, 1);
   RunOp_safe(semid, wait_enter, 1); //Z()&V()
   printf("Deliver %d: Ready!\n", id);
 
-  // int cooked_pizzas = 0;
-  // while(cooked_pizzas != 5) {
-  //   for (int i = 0; i < N; i++) {
-  //     if (buffer[i] = free_table) {
-  //       ;//block others to change
-  //     }
-  //   }
-  // }
+  bool take_pizza = true;
+  bool flag = false;
+  while(take_pizza) {
+    //royal_print(N, buffer);
+    RunOp_safe(semid, cook_pizza_P, 1);
+    for (int i = 0; i < N; i++) {
+      if (buffer[i] == pizza_ready) {
+        RunOp_safe(semid, pizza_is_ready, 1);
+        buffer[i] = free_table; flag = true;
+        break;
+      }
+    }
+
+    if (GetVal_safe(semid, 4) == 0) 
+      take_pizza = false; //no more pizzas on the table
+    
+    RunOp_safe(semid, cook_pizza_V, 1);
+  }
+
+  printf("exit deliver\n");
 
   exit(0);
 }
@@ -124,6 +138,7 @@ void Kitchener(int id, int shmid, int semid, int N)
   struct sembuf kitchener_enter[] = {{1, -1, 0}};
   struct sembuf wait_enter[] = {{0, 0, 0}};// waiting for entering
   struct sembuf cook_pizza_P[] = {{3, -1, 0}};
+  struct sembuf pizza[] = {{4, 1, 0}};
   struct sembuf cook_pizza_V[] = {{3, 1, 0}};
 
   int* buffer = (int*)shmat(shmid, NULL, 0);
@@ -143,13 +158,18 @@ void Kitchener(int id, int shmid, int semid, int N)
   int table_index = 0;
   bool flag = false;
   while(cooked_pizzas != 5) {
-    //royal_print(N, buffer);
     RunOp_safe(semid, cook_pizza_P, 1);
+  
+    // for (int i = 0; i < 5; i++) printf("%d ", GetVal_safe(semid, i));
+    // fflush(stdout);
+    // printf("\n");
+    
+    //royal_print(N, buffer);
     for (int i = 0; i < N; i++) {
       if (buffer[i] == free_table) {
+        RunOp_safe(semid, pizza, 1);
         table_index = i;
         buffer[i] = pizza_cooking;
-        printf("N = %d\n", N); 
         flag = true;
         break;
       }
@@ -163,17 +183,16 @@ void Kitchener(int id, int shmid, int semid, int N)
       buffer[table_index] = pizza_ready; cooked_pizzas++;
       flag = false;
     }
-    
   }
 
-  
+  printf("exit kitchen\n");
   
   exit(0);
 }
 
 int create_semaphore(const char* name, int flags, struct Argument* st) {
-  // sem_array = | Able_to_enter | K | D | Able_to_make_pizza |
-  int semid = semget(ftok(name, 1), 4, flags | 0644);
+  // sem_array = | Able_to_enter | K | D | Able_to_make_pizza | pizzas | 
+  int semid = semget(ftok(name, 1), 5, flags);
   if (semid == -1) {
     perror("unable to create semphore\n");
     exit(EXIT_FAILURE);
@@ -183,6 +202,7 @@ int create_semaphore(const char* name, int flags, struct Argument* st) {
   semctl(semid, 1, SETVAL, st->K);
   semctl(semid, 2, SETVAL, st->D);
   semctl(semid, 3, SETVAL, 1);
+  semctl(semid, 4, SETVAL, 0);
   
   printf("Semaphore is created\n");
 
