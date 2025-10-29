@@ -10,6 +10,7 @@ void Kitchener(int id, int shmid, int semid, int N);
 void CreateKitchener(int shmid, int semid, struct Argument* st);
 void royal_print(int N, int* buffer);
 
+int GetVal_safe(int semid, int num_in_sem);
 int create_semaphore(const char* name, int flags, struct Argument* st);
 void delete_semaphore(int semid);
 
@@ -142,19 +143,19 @@ void Kitchener(int id, int shmid, int semid, int N)
   int table_index = 0;
   bool flag = false;
   while(cooked_pizzas != 5) {
+    //royal_print(N, buffer);
+    RunOp_safe(semid, cook_pizza_P, 1);
     for (int i = 0; i < N; i++) {
-      RunOp_safe(semid, cook_pizza_P, 1);
-      
       if (buffer[i] == free_table) {
         table_index = i;
         buffer[i] = pizza_cooking;
         printf("N = %d\n", N); 
-        royal_print(N, buffer);
         flag = true;
         break;
       }
-      RunOp_safe(semid, cook_pizza_V, 1);
     }
+    
+    RunOp_safe(semid, cook_pizza_V, 1);
 
     if (flag) {
       printf("Cooker %d: I am cooking %d\n", id, cooked_pizzas+1);
@@ -162,7 +163,10 @@ void Kitchener(int id, int shmid, int semid, int N)
       buffer[table_index] = pizza_ready; cooked_pizzas++;
       flag = false;
     }
+    
   }
+
+  
   
   exit(0);
 }
